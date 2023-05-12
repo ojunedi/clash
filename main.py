@@ -4,7 +4,7 @@ from itertools import combinations
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Your API token
+# API token
 api_token = os.environ.get("api_token")
 
 # The endpoint URL for the Clash Royale API
@@ -19,67 +19,93 @@ headers = {"Accept": "application/json", "Authorization": "Bearer " + api_token}
 # Get the player's battle log
 response = requests.get("https://api.clashroyale.com/v1/players/" + player_tag + "/battlelog", headers=headers)
 
-# If the request was successful, process the battle log
-if response.status_code == 200:
-    battle_log = response.json()
+def populate_maps(deck: list, one_card: dict, two_card: dict):
+    two_card_combinations = list(combinations(deck, 2))
+    # Iterate through all possible two card combinations
+    # populate freq map
+    for card_pairing in two_card_combinations:
+        if card_pairing in two_card:
+            two_card[card_pairing] += 1
+        else:
+            two_card[card_pairing] = 1
+    
+    # populate freq map
+    for card in deck:
+        if card in one_card:
+            one_card[card] += 1
+        else:
+            one_card[card] = 1
 
-    # Create a dictionary to store the count of each two card combination
-    card_combinations = {}
+    return one_card, two_card
 
-    # Iterate through each battle in the player's battle log
-    for battle in battle_log:
-        if battle["type"] == "PvP":
-            # Check if the player lost the battle
-            if battle["team"][0]["trophyChange"] < 0:
+#TODO determine parameters for this function, and how to differentiate between
+# the maps passed in (two_card vs one_card vs something else maybe?)
+def make_plot(map: dict, x_label: str , y_label: str, title: str):
+    pass
+
+def main():
+    # If the request was successful, process the battle log
+    if response.status_code == 200:
+        battle_log = response.json()
+
+        # Create a dictionary to store the count of each two card combination
+        card_combinations_lost = {}
+        card_combinations_win = {}
+        # Create a dictionary to store the count of cards
+        card_counts_lost = {}
+        card_counts_win = {}
+
+
+
+        c = 0
+        # Iterate through each battle in the player's battle log
+        for battle in battle_log:
+            c += 1
+            if battle["type"] == "PvP":
                 # Get the player's deck and the opponent's deck
                 player_deck = [card["name"] for card in battle["team"][0]["cards"]]
                 opponent_deck = [card["name"] for card in battle["opponent"][0]["cards"]]
-                print(opponent_deck)
+                # Check if the player lost the battle
+                if battle["team"][0]["trophyChange"] < 0:
+                    card_counts_lost, card_combinations_lost = populate_maps(opponent_deck, card_counts_lost, card_combinations_lost)
+                # player won the game 
+                elif battle["team"][0]["trophyChange"] > 0:
+                    card_counts_win, card_combinations_win = populate_maps(opponent_deck, card_counts_win, card_combinations_win)
+        print(c)
+        # def make_plot():
+        # Sort the combinations by count and print the top 10
+        sorted_combinations_loss = sorted(card_combinations_lost.items(), key=lambda x: x[1], reverse=True)
+        print("The two card combinations that", player_tag, "loses to most often are:")
+        for i in range(min(len(sorted_combinations_loss), 10)):
+            print(sorted_combinations_loss[i][0], "-", sorted_combinations_loss[i][1], "times")
+        
+        sorted_combinations_win = sorted(card_combinations_win.items(), key=lambda x: x[1], reverse=True)
+        print("The two card combinations that", player_tag, "wins against the most often are:")
+        for i in range(min(len(sorted_combinations_win), 10)):
+            print(sorted_combinations_win[i][0], "-", sorted_combinations_win[i][1], "times")
 
-                # Iterate through all possible two card combinations
-                two_card_combinations = list(combinations(opponent_deck, 2))
-                for card_pairing in two_card_combinations:
-                    # Add the combination to the dictionary, or increment its count if it already exists
-                    if card_pairing in card_combinations:
-                        card_combinations[card_pairing] += 1
-                    else:
-                        card_combinations[card_pairing] = 1
+        #TODO 
+        x_labels = [f"{k[0]}-{k[1]}" for k in card_combinations_lost.keys()]
+        y_values = list(card_combinations_lost.values())
 
-                # for i in range(len(player_deck)):
-                #     for j in range(i+1, len(player_deck)):
-                #         player_cards = [player_deck[i], player_deck[j]]
-                #         player_cards.sort()
-                #         opponent_cards = [card for card in opponent_deck if card not in player_cards]
-                #         opponent_cards.sort()
-                #         card_combination = tuple(player_cards + opponent_cards)
-                #         # Add the combination to the dictionary, or increment its count if it already exists
-                #         if card_combination in card_combinations:
-                #             card_combinations[card_combination] += 1
-                #         else:
-                #             card_combinations[card_combination] = 1
+        # Set the style of the plot
+        sns.set_style("darkgrid")
 
-    # Sort the combinations by count and print the top 10
-    sorted_combinations = sorted(card_combinations.items(), key=lambda x: x[1], reverse=True)
-    print("The two card combinations that", player_tag, "loses to most often are:")
-    for i in range(min(len(sorted_combinations), 10)):
-        print(sorted_combinations[i][0], "-", sorted_combinations[i][1], "times")
+        # Create a bar plot using Matplotlib and Seaborn
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.barplot(x=x_labels, y=y_values, palette="Set2")
 
-    x_labels = [f"{k[0]}-{k[1]}" for k in card_combinations.keys()]
-    y_values = list(card_combinations.values())
+        # Set the labels and title of the plot
+        ax.set_xlabel("Card Combinations", fontsize=14)
+        ax.set_ylabel("Frequency", fontsize=14)
+        ax.set_title("Card Combinations Frequencies", fontsize=16)
 
-    # Set the style of the plot
-    sns.set_style("darkgrid")
+        # Display the plot
+        plt.show()
+    else:
+        print("Error getting player information. Status code:", response.status_code)
 
-    # Create a bar plot using Matplotlib and Seaborn
-    fig, ax = plt.subplots(figsize=(8, 6))
-    sns.barplot(x=x_labels, y=y_values, palette="Set2")
 
-    # Set the labels and title of the plot
-    ax.set_xlabel("Card Combinations", fontsize=14)
-    ax.set_ylabel("Frequency", fontsize=14)
-    ax.set_title("Card Combinations Frequencies", fontsize=16)
 
-    # Display the plot
-    plt.show()
-else:
-    print("Error getting player information. Status code:", response.status_code)
+if __name__ == "__main__":
+    main()
