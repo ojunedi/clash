@@ -3,7 +3,7 @@ import os
 from itertools import combinations
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+from typing import Tuple
 # API token
 api_token = os.environ.get("api_token")
 
@@ -17,9 +17,10 @@ player_tag = "%238CQU9PY8"
 headers = {"Accept": "application/json", "Authorization": "Bearer " + api_token}
 
 # Get the player's battle log
+#TODO figure out how to get more than 25 previous battles (if possible)
 response = requests.get("https://api.clashroyale.com/v1/players/" + player_tag + "/battlelog", headers=headers)
 
-def populate_maps(deck: list, one_card: dict, two_card: dict):
+def populate_maps(deck: list, one_card: dict, two_card: dict) -> Tuple[dict, dict]:
     two_card_combinations = list(combinations(deck, 2))
     # Iterate through all possible two card combinations
     # populate freq map
@@ -40,8 +41,30 @@ def populate_maps(deck: list, one_card: dict, two_card: dict):
 
 #TODO determine parameters for this function, and how to differentiate between
 # the maps passed in (two_card vs one_card vs something else maybe?)
-def make_plot(map: dict, x_label: str , y_label: str, title: str):
-    pass
+def make_plot(map: dict, x_label: str , y_label: str, title: str, two_card: bool) -> None:
+
+    if two_card:
+        sorted_map = sorted(map.items(), key=lambda x: x[1], reverse=True)
+        labels = [sorted_map[i][0] for i in range(len(sorted_map))]
+        values = [sorted_map[i][1] for i in range(len(sorted_map))]
+        # labels = [f"{k[0]}-{k[1]}" for k in map.keys()]
+    else:
+        labels = list(map.keys())
+        values = list(map.values())
+
+
+    sns.set_style("darkgrid")
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sns.barplot(x=labels[:10], y=values[:10], palette="Set2")
+
+
+    ax.set_xlabel(x_label, fontsize=14)
+    ax.set_ylabel(y_label, fontsize=14)
+    ax.set_title(title, fontsize=16)
+
+    plt.show()
+
 
 def main():
     # If the request was successful, process the battle log
@@ -49,11 +72,11 @@ def main():
         battle_log = response.json()
 
         # Create a dictionary to store the count of each two card combination
-        card_combinations_lost = {}
-        card_combinations_win = {}
+        card_combinations_lost: dict[Tuple[str, str], int] = {}
+        card_combinations_win: dict[Tuple[str, str], int] = {}
         # Create a dictionary to store the count of cards
-        card_counts_lost = {}
-        card_counts_win = {}
+        card_counts_lost: dict[str, int] = {}
+        card_counts_win: dict[str, int] = {}
 
 
 
@@ -71,7 +94,10 @@ def main():
                 # player won the game 
                 elif battle["team"][0]["trophyChange"] > 0:
                     card_counts_win, card_combinations_win = populate_maps(opponent_deck, card_counts_win, card_combinations_win)
-        print(c)
+        # print("Unsorted Win Dictionary: ")
+        # print(card_combinations_win)
+        # print("Unsorted Loss Dictionary: ")
+        # print(card_combinations_lost)
         # def make_plot():
         # Sort the combinations by count and print the top 10
         sorted_combinations_loss = sorted(card_combinations_lost.items(), key=lambda x: x[1], reverse=True)
@@ -84,24 +110,31 @@ def main():
         for i in range(min(len(sorted_combinations_win), 10)):
             print(sorted_combinations_win[i][0], "-", sorted_combinations_win[i][1], "times")
 
-        #TODO 
-        x_labels = [f"{k[0]}-{k[1]}" for k in card_combinations_lost.keys()]
-        y_values = list(card_combinations_lost.values())
+        #TODO
 
-        # Set the style of the plot
-        sns.set_style("darkgrid")
+        make_plot(card_combinations_lost, "Card Combinations", "Frequency", "Card Combination Lost to Frequencies", True)
+        make_plot(card_combinations_win, "Card Combinations", "Frequency", "Card Combination Frequencies Won to", True)
+        make_plot(card_counts_win, "Cards", "Frequency", "Card Frequencies Won", False)
+        make_plot(card_counts_lost, "Cards", "Frequency", "Card Frequencies Lost", False)
 
-        # Create a bar plot using Matplotlib and Seaborn
-        fig, ax = plt.subplots(figsize=(8, 6))
-        sns.barplot(x=x_labels, y=y_values, palette="Set2")
 
-        # Set the labels and title of the plot
-        ax.set_xlabel("Card Combinations", fontsize=14)
-        ax.set_ylabel("Frequency", fontsize=14)
-        ax.set_title("Card Combinations Frequencies", fontsize=16)
+        # x_labels = [f"{k[0]}-{k[1]}" for k in card_combinations_lost.keys()]
+        # y_values = list(card_combinations_lost.values())
 
-        # Display the plot
-        plt.show()
+        # # Set the style of the plot
+        # sns.set_style("darkgrid")
+
+        # # Create a bar plot using Matplotlib and Seaborn
+        # fig, ax = plt.subplots(figsize=(8, 6))
+        # sns.barplot(x=x_labels, y=y_values, palette="Set2")
+
+        # # Set the labels and title of the plot
+        # ax.set_xlabel("Card Combinations", fontsize=14)
+        # ax.set_ylabel("Frequency", fontsize=14)
+        # ax.set_title("Card Combinations Frequencies", fontsize=16)
+
+        # # Display the plot
+        # plt.show()
     else:
         print("Error getting player information. Status code:", response.status_code)
 
