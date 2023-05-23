@@ -43,26 +43,24 @@ def populate_maps(deck: list, one_card: dict, two_card: dict) -> Tuple[dict, dic
 # the maps passed in (two_card vs one_card vs something else maybe?)
 def make_plot(map: dict, x_label: str , y_label: str, title: str, two_card: bool) -> None:
 
-    if two_card:
-        sorted_map = sorted(map.items(), key=lambda x: x[1], reverse=True)
-        labels = [sorted_map[i][0] for i in range(len(sorted_map))]
-        values = [sorted_map[i][1] for i in range(len(sorted_map))]
-        # labels = [f"{k[0]}-{k[1]}" for k in map.keys()]
-    else:
-        labels = list(map.keys())
-        values = list(map.values())
+    sorted_map = sorted(map.items(), key= lambda x: x[1], reverse=True)
+    labels = [sorted_map[i][0] for i in range(len(sorted_map))]
+    values = [sorted_map[i][1] for i in range(len(sorted_map))]
 
+
+    if two_card:
+        labels = [f"{k[0]} \n {k[1]}" for k in labels]
 
     sns.set_style("darkgrid")
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(10, 7.5))
     sns.barplot(x=labels[:10], y=values[:10], palette="Set2")
 
-
-    ax.set_xlabel(x_label, fontsize=14)
-    ax.set_ylabel(y_label, fontsize=14)
+    ax.set_xlabel(x_label, fontsize=10)
+    ax.set_ylabel(y_label, fontsize=10)
     ax.set_title(title, fontsize=16)
 
+    plt.setp(ax.get_xticklabels(), fontsize=7)
     plt.show()
 
 
@@ -94,12 +92,8 @@ def main():
                 # player won the game 
                 elif battle["team"][0]["trophyChange"] > 0:
                     card_counts_win, card_combinations_win = populate_maps(opponent_deck, card_counts_win, card_combinations_win)
-        # print("Unsorted Win Dictionary: ")
-        # print(card_combinations_win)
-        # print("Unsorted Loss Dictionary: ")
-        # print(card_combinations_lost)
-        # def make_plot():
-        # Sort the combinations by count and print the top 10
+
+
         sorted_combinations_loss = sorted(card_combinations_lost.items(), key=lambda x: x[1], reverse=True)
         print("The two card combinations that", player_tag, "loses to most often are:")
         for i in range(min(len(sorted_combinations_loss), 10)):
@@ -112,29 +106,11 @@ def main():
 
         #TODO
 
-        make_plot(card_combinations_lost, "Card Combinations", "Frequency", "Card Combination Lost to Frequencies", True)
-        make_plot(card_combinations_win, "Card Combinations", "Frequency", "Card Combination Frequencies Won to", True)
-        make_plot(card_counts_win, "Cards", "Frequency", "Card Frequencies Won", False)
-        make_plot(card_counts_lost, "Cards", "Frequency", "Card Frequencies Lost", False)
+        make_plot(card_combinations_lost, "Card Combinations", "Frequency", "Card Combination Lost to Frequencies", two_card=True)
+        make_plot(card_combinations_win, "Card Combinations", "Frequency", "Card Combination Frequencies Won to", two_card=True)
+        make_plot(card_counts_win, "Cards", "Frequency", "Card Frequencies Won", two_card=False)
+        make_plot(card_counts_lost, "Cards", "Frequency", "Card Frequencies Lost", two_card=False)
 
-
-        # x_labels = [f"{k[0]}-{k[1]}" for k in card_combinations_lost.keys()]
-        # y_values = list(card_combinations_lost.values())
-
-        # # Set the style of the plot
-        # sns.set_style("darkgrid")
-
-        # # Create a bar plot using Matplotlib and Seaborn
-        # fig, ax = plt.subplots(figsize=(8, 6))
-        # sns.barplot(x=x_labels, y=y_values, palette="Set2")
-
-        # # Set the labels and title of the plot
-        # ax.set_xlabel("Card Combinations", fontsize=14)
-        # ax.set_ylabel("Frequency", fontsize=14)
-        # ax.set_title("Card Combinations Frequencies", fontsize=16)
-
-        # # Display the plot
-        # plt.show()
     else:
         print("Error getting player information. Status code:", response.status_code)
 
