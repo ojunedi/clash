@@ -4,6 +4,7 @@ from itertools import combinations
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Tuple
+
 # API token
 api_token = os.environ.get("api_token")
 
@@ -17,8 +18,12 @@ player_tag = "%238CQU9PY8"
 headers = {"Accept": "application/json", "Authorization": "Bearer " + api_token}
 
 # Get the player's battle log
-#TODO figure out how to get more than 25 previous battles (if possible)
-response = requests.get("https://api.clashroyale.com/v1/players/" + player_tag + "/battlelog", headers=headers)
+# TODO figure out how to get more than 25 previous battles (if possible)
+response = requests.get(
+    "https://api.clashroyale.com/v1/players/" + player_tag + "/battlelog",
+    headers=headers,
+)
+
 
 def populate_maps(deck: list, one_card: dict, two_card: dict) -> Tuple[dict, dict]:
     two_card_combinations = list(combinations(deck, 2))
@@ -29,7 +34,7 @@ def populate_maps(deck: list, one_card: dict, two_card: dict) -> Tuple[dict, dic
             two_card[card_pairing] += 1
         else:
             two_card[card_pairing] = 1
-    
+
     # populate freq map
     for card in deck:
         if card in one_card:
@@ -39,14 +44,16 @@ def populate_maps(deck: list, one_card: dict, two_card: dict) -> Tuple[dict, dic
 
     return one_card, two_card
 
-#TODO determine parameters for this function, and how to differentiate between
-# the maps passed in (two_card vs one_card vs something else maybe?)
-def make_plot(map: dict, x_label: str , y_label: str, title: str, two_card: bool) -> None:
 
-    sorted_map = sorted(map.items(), key= lambda x: x[1], reverse=True)
+# TODO determine parameters for this function, and how to differentiate between
+# the maps passed in (two_card vs one_card vs something else maybe?)
+def make_plot(
+    map: dict, x_label: str, y_label: str, title: str, two_card: bool, wins=0
+) -> None:
+
+    sorted_map = sorted(map.items(), key=lambda x: x[1], reverse=True)
     labels = [sorted_map[i][0] for i in range(len(sorted_map))]
     values = [sorted_map[i][1] for i in range(len(sorted_map))]
-
 
     if two_card:
         labels = [f"{k[0]} \n {k[1]}" for k in labels]
@@ -59,6 +66,7 @@ def make_plot(map: dict, x_label: str , y_label: str, title: str, two_card: bool
     ax.set_xlabel(x_label, fontsize=10)
     ax.set_ylabel(y_label, fontsize=10)
     ax.set_title(title, fontsize=16)
+    plt.text(9, 6, f"Win Rate = {(wins/25) * 100}%")
 
     plt.setp(ax.get_xticklabels(), fontsize=7)
     plt.show()
@@ -76,44 +84,92 @@ def main():
         card_counts_lost: dict[str, int] = {}
         card_counts_win: dict[str, int] = {}
 
-
-
-        c = 0
+        wins = 0
         # Iterate through each battle in the player's battle log
         for battle in battle_log:
-            c += 1
             if battle["type"] == "PvP":
                 # Get the player's deck and the opponent's deck
                 player_deck = [card["name"] for card in battle["team"][0]["cards"]]
-                opponent_deck = [card["name"] for card in battle["opponent"][0]["cards"]]
+                opponent_deck = [
+                    card["name"] for card in battle["opponent"][0]["cards"]
+                ]
                 # Check if the player lost the battle
                 if battle["team"][0]["trophyChange"] < 0:
-                    card_counts_lost, card_combinations_lost = populate_maps(opponent_deck, card_counts_lost, card_combinations_lost)
-                # player won the game 
+                    card_counts_lost, card_combinations_lost = populate_maps(
+                        opponent_deck, card_counts_lost, card_combinations_lost
+                    )
+                # player won the game
                 elif battle["team"][0]["trophyChange"] > 0:
-                    card_counts_win, card_combinations_win = populate_maps(opponent_deck, card_counts_win, card_combinations_win)
+                    wins += 1
+                    card_counts_win, card_combinations_win = populate_maps(
+                        opponent_deck, card_counts_win, card_combinations_win
+                    )
 
-
-        sorted_combinations_loss = sorted(card_combinations_lost.items(), key=lambda x: x[1], reverse=True)
+        sorted_combinations_loss = sorted(
+            card_combinations_lost.items(), key=lambda x: x[1], reverse=True
+        )
         print("The two card combinations that", player_tag, "loses to most often are:")
         for i in range(min(len(sorted_combinations_loss), 10)):
-            print(sorted_combinations_loss[i][0], "-", sorted_combinations_loss[i][1], "times")
-        
-        sorted_combinations_win = sorted(card_combinations_win.items(), key=lambda x: x[1], reverse=True)
-        print("The two card combinations that", player_tag, "wins against the most often are:")
+            print(
+                sorted_combinations_loss[i][0],
+                "-",
+                sorted_combinations_loss[i][1],
+                "times",
+            )
+
+        sorted_combinations_win = sorted(
+            card_combinations_win.items(), key=lambda x: x[1], reverse=True
+        )
+        print(
+            "The two card combinations that",
+            player_tag,
+            "wins against the most often are:",
+        )
         for i in range(min(len(sorted_combinations_win), 10)):
-            print(sorted_combinations_win[i][0], "-", sorted_combinations_win[i][1], "times")
+            print(
+                sorted_combinations_win[i][0],
+                "-",
+                sorted_combinations_win[i][1],
+                "times",
+            )
 
-        #TODO
+        # TODO
 
-        make_plot(card_combinations_lost, "Card Combinations", "Frequency", "Card Combination Lost to Frequencies", two_card=True)
-        make_plot(card_combinations_win, "Card Combinations", "Frequency", "Card Combination Frequencies Won to", two_card=True)
-        make_plot(card_counts_win, "Cards", "Frequency", "Card Frequencies Won", two_card=False)
-        make_plot(card_counts_lost, "Cards", "Frequency", "Card Frequencies Lost", two_card=False)
+        make_plot(
+            card_combinations_lost,
+            "Card Combinations",
+            "Frequency",
+            "Card Combination Lost to Frequencies",
+            two_card=True,
+            wins=wins,
+        )
+        make_plot(
+            card_combinations_win,
+            "Card Combinations",
+            "Frequency",
+            "Card Combination Frequencies Won to",
+            two_card=True,
+            wins=wins,
+        )
+        make_plot(
+            card_counts_win,
+            "Cards",
+            "Frequency",
+            "Card Frequencies Won",
+            two_card=False,
+            wins=wins,
+        )
+        make_plot(
+            card_counts_lost,
+            "Cards",
+            "Frequency",
+            "Card Frequencies Lost",
+            two_card=False,
+            wins=wins,
+        )
 
     else:
         print("Error getting player information. Status code:", response.status_code)
-
 
 
 if __name__ == "__main__":
